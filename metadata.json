@@ -1,0 +1,6 @@
+{
+  "name": "조세전문가 게시판",
+  "description": "Supabase와 연동하여 실시간 글 작성, 수정, 삭제가 가능한 수려하고 모던한 웹 게시판입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
