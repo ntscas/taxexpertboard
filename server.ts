@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Body parser
 app.use(express.json());
