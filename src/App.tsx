@@ -274,22 +274,6 @@ export default function App() {
               <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">DB Connection</span>
               <span className={`w-1.5 h-1.5 rounded-full inline-block ${usingSupabase ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
             </div>
-            <button
-              onClick={() => setIsConfigModalOpen(true)}
-              className="text-slate-400 hover:text-white transition p-1 hover:bg-slate-800 rounded cursor-pointer"
-              title="데이터베이스 연동 설정"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="text-[10px] text-slate-400 mb-3 leading-tight flex flex-col gap-1">
-            <span className="font-semibold text-slate-300">
-              {usingSupabase ? "⚡ Supabase 클라우드 모드" : "📁 브라우저 로컬 저장소 모드"}
-            </span>
-            <span className="text-[9px] text-slate-500 truncate font-mono block max-w-[240px]">
-              {usingSupabase ? supabaseUrl : "데이터가 브라우저에 자동 안전 저장됩니다"}
-            </span>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono text-slate-400">
