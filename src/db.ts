@@ -24,6 +24,14 @@ export interface DbConfig {
   source: "env" | "override" | "none";
 }
 
+// =========================================================================
+// 💡 GitHub Pages 등 정적 배포용 하드코딩 설정영역 (옵션)
+// 빌드 환경 변수(env) 지정이 어렵다면 아래 두 칸에 Supabase 정보를 직접 입력하세요.
+// 자동으로 감지되어 방문자 누구든 입력창 없이 즉시 Supabase 클라우드로 시작됩니다.
+// =========================================================================
+const HARDCODED_SUPABASE_URL = "https://agwcumknhangcyhusfsn.supabase.co"; 
+const HARDCODED_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnd2N1bWtuaGFuZ2N5aHVzZnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzA4MDMsImV4cCI6MjA5NjE0NjgwM30.BD84awWmc6sd4-RdJ7UkvtRYxGAUOJ3svv505MstyRU"; 
+
 export function getDbConfig(): DbConfig {
   // 1. Check local storage overrides (allows runtime configuration in client)
   const lUrl = localStorage.getItem("VITE_SUPABASE_URL_OVERRIDE")?.trim() || null;
@@ -54,6 +62,23 @@ export function getDbConfig(): DbConfig {
     return {
       supabaseUrl: normalizeSupabaseUrl(envUrl) || null,
       supabaseAnonKey: envKey,
+      isConfigured: true,
+      source: "env"
+    };
+  }
+
+  // 3. Check hardcoded fallback credentials
+  const isHardcodedConfigured = !!(
+    HARDCODED_SUPABASE_URL &&
+    HARDCODED_SUPABASE_URL !== "https://your-project.supabase.co" &&
+    HARDCODED_SUPABASE_ANON_KEY &&
+    HARDCODED_SUPABASE_ANON_KEY !== "your-anon-key"
+  );
+
+  if (isHardcodedConfigured) {
+    return {
+      supabaseUrl: normalizeSupabaseUrl(HARDCODED_SUPABASE_URL) || null,
+      supabaseAnonKey: HARDCODED_SUPABASE_ANON_KEY,
       isConfigured: true,
       source: "env"
     };
