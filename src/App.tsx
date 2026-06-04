@@ -3,12 +3,13 @@ import {
   Plus, Search, RefreshCw, Layers, Database, 
   HelpCircle, AlertTriangle, AlertCircle, CheckCircle, 
   Flame, TrendingUp, BarChart2, MessageSquare, ArrowUpDown,
-  Menu, X
+  Menu, X, Settings
 } from "lucide-react";
-import { Post, Category, SortOption, StatusResponse } from "./types";
+import { Post, Category, SortOption } from "./types";
 import { PostCard } from "./components/PostCard";
 import { PostForm } from "./components/PostForm";
 import { PostDetail } from "./components/PostDetail";
+import { dbService, getDbConfig } from "./db";
 
 export default function App() {
   // DB & System connection states
@@ -17,6 +18,12 @@ export default function App() {
   const [supabaseUrl, setSupabaseUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Custom Database Setup modal
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [dbInputUrl, setDbInputUrl] = useState("");
+  const [dbInputKey, setDbInputKey] = useState("");
+  const [setupSource, setSetupSource] = useState<"env" | "override" | "none">("none");
+
   // Filter & Search & Sort states
   const [selectedCategory, setSelectedCategory] = useState<Category>("전체");
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,14 +54,16 @@ export default function App() {
   // 1. Fetch system status
   const checkStatus = async () => {
     try {
-      const res = await fetch("/api/status");
-      if (res.ok) {
-        const data: StatusResponse = await res.json();
-        setUsingSupabase(data.usingSupabase);
-        setSupabaseUrl(data.supabaseUrl);
-      }
+      const data = await dbService.checkStatus();
+      setUsingSupabase(data.usingSupabase);
+      setSupabaseUrl(data.supabaseUrl);
+      setSetupSource(data.source);
+      
+      const config = getDbConfig();
+      setDbInputUrl(config.supabaseUrl || "");
+      setDbInputKey(config.supabaseAnonKey || "");
     } catch (err) {
-      console.error("Failed to check backend configuration status:", err);
+      console.error("Failed to check database configuration status:", err);
     }
   };
 
@@ -64,11 +73,8 @@ export default function App() {
     await Promise.all(
       postsList.map(async (p) => {
         try {
-          const res = await fetch(`/api/posts/${p.id}/comments`);
-          if (res.ok) {
-            const data = await res.json();
-            counts[p.id] = data.comments?.length || 0;
-          }
+          const data = await dbService.getComments(p.id);
+          counts[p.id] = data.comments?.length || 0;
         } catch (e) {
           counts[p.id] = 0;
         }
@@ -81,11 +87,7 @@ export default function App() {
   const fetchPosts = async () => {
     try {
       setIsLoading(true);
-      const url = `/api/posts?category=${encodeURIComponent(selectedCategory)}&search=${encodeURIComponent(searchQuery)}&sort=${sortOption}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("게시글 리스트를 가져오는 데 실패했습니다.");
-      
-      const data = await res.json();
+      const data = await dbService.getPosts(selectedCategory, searchQuery, sortOption);
       setPosts(data.posts || []);
       
       // Load comment counts parallel
@@ -95,6 +97,20 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Save Config Custom Overrides
+  const handleSaveConfig = () => {
+    if (!dbInputUrl.trim() || !dbInputKey.trim()) {
+      dbService.clearOverrideConfig();
+      triggerToast("연결 설정을 초기화했습니다. 로컬 데모 모드로 복귀합니다.", "success");
+    } else {
+      dbService.saveOverrideConfig(dbInputUrl, dbInputKey);
+      triggerToast("Supabase 데이터베이스 연동 및 저장이 반영되었습니다! ⚡", "success");
+    }
+    setIsConfigModalOpen(false);
+    checkStatus();
+    fetchPosts();
   };
 
   // Initial load
@@ -122,38 +138,33 @@ export default function App() {
     category: Category;
   }) => {
     const isEdit = !!editingPost;
-    const url = isEdit ? `/api/posts/${editingPost.id}` : "/api/posts";
-    const method = isEdit ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-
-    if (res.status === 403) {
-      throw new Error("비밀번호가 일치하지 않습니다.");
-    }
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || "서버 연동 도중 오류가 발생했습니다. 필드를 확인해 주세요.");
-    }
-
-    const data = await res.json();
     
-    // Close forms
-    setIsFormOpen(false);
-    setEditingPost(null);
-    
-    // Notify
-    triggerToast(isEdit ? "게시글이 안전하게 수정되었습니다." : "게시글 작성을 완료했습니다!");
-    
-    // Instant reload
-    fetchPosts();
+    try {
+      let resData;
+      if (isEdit) {
+        resData = await dbService.updatePost(editingPost.id, formData);
+      } else {
+        resData = await dbService.createPost(formData);
+      }
 
-    // If detail modal was open under it, update its detail modal state
-    if (selectedPost && selectedPost.id === data.post.id) {
-      setSelectedPost(data.post);
+      const data = resData;
+      
+      // Close forms
+      setIsFormOpen(false);
+      setEditingPost(null);
+      
+      // Notify
+      triggerToast(isEdit ? "게시글이 안전하게 수정되었습니다." : "게시글 작성을 완료했습니다!");
+      
+      // Instant reload
+      fetchPosts();
+
+      // If detail modal was open under it, update its detail modal state
+      if (selectedPost && selectedPost.id === data.post.id) {
+        setSelectedPost(data.post);
+      }
+    } catch (err: any) {
+      throw new Error(err.message || "서버 연동 도중 오류가 발생했습니다. 필드를 확인해 주세요.");
     }
   };
 
@@ -259,7 +270,26 @@ export default function App() {
         {/* Database state and summary metrics nested inside Sidebar footer */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/40 text-left shrink-0 mt-auto">
           <div className="flex items-center justify-between mb-3 text-xs">
-            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Database Stat</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">DB Connection</span>
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${usingSupabase ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+            </div>
+            <button
+              onClick={() => setIsConfigModalOpen(true)}
+              className="text-slate-400 hover:text-white transition p-1 hover:bg-slate-800 rounded cursor-pointer"
+              title="데이터베이스 연동 설정"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="text-[10px] text-slate-400 mb-3 leading-tight flex flex-col gap-1">
+            <span className="font-semibold text-slate-300">
+              {usingSupabase ? "⚡ Supabase 클라우드 모드" : "📁 브라우저 로컬 저장소 모드"}
+            </span>
+            <span className="text-[9px] text-slate-500 truncate font-mono block max-w-[240px]">
+              {usingSupabase ? supabaseUrl : "데이터가 브라우저에 자동 안전 저장됩니다"}
+            </span>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono text-slate-400">
@@ -477,6 +507,106 @@ export default function App() {
           }}
           onSubmit={handlePostSubmit}
         />
+      )}
+
+      {/* MODAL: Database Settings custom config overlay */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-150 animate-fade-in text-left">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-premium border border-slate-100 overflow-hidden flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-500" />
+                <h3 className="font-display font-semibold text-slate-800 text-sm">Supabase 데이터베이스 연동 및 관리</h3>
+              </div>
+              <button 
+                onClick={() => setIsConfigModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-slate-500 text-xs leading-relaxed">
+                현재 설치된 게시판은 백엔드 중계 서버 없이 웹 브라우저에서 직접 Supabase와 통신하는 <strong>클라이언트 전용 SPA 방식</strong>입니다. 아래 정보를 기입해 즉시 실시간 데이터베이스를 구축하세요.
+              </p>
+              
+              <div className="p-3 bg-emerald-50 rounded-lg text-[11px] text-emerald-800 leading-normal border border-emerald-100">
+                💡 <strong>안내:</strong> 정보는 사용자의 브라우저 내 로컬 저장소(<code className="font-mono bg-emerald-100 px-1 rounded text-[10px]">localStorage</code>)에만 안전하게 비밀리에 저장되며 네트워크상 외부에 노출되지 않습니다.
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  SUPABASE PROJECT URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://xxxx.supabase.co"
+                  value={dbInputUrl}
+                  onChange={(e) => setDbInputUrl(e.target.value)}
+                  className="w-full text-xs font-mono h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  SUPABASE ANON KEY (PUBLIC API KEY)
+                </label>
+                <textarea
+                  placeholder="eyJhbGciOi..."
+                  value={dbInputKey}
+                  onChange={(e) => setDbInputKey(e.target.value)}
+                  rows={3}
+                  className="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition resize-none"
+                />
+              </div>
+
+              <div className="text-[10px] text-slate-400 leading-normal">
+                연결 정보가 비어 있는 경우 기본적으로 동적인 데모 동작이 가능하도록 로컬 브라우저 기기 저장소(<strong className="text-amber-600">LocalStorage</strong>)에 자동 안전 저장하여 fallback 연동됩니다.
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setDbInputUrl("");
+                  setDbInputKey("");
+                  dbService.clearOverrideConfig();
+                  triggerToast("설정을 초기화했습니다. 로컬 기기 데이터베이스 모드로 복원됩니다.");
+                  setIsConfigModalOpen(false);
+                  checkStatus();
+                  fetchPosts();
+                }}
+                className="text-rose-500 hover:text-rose-700 font-medium text-xs px-2.5 py-1.5 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
+              >
+                연결 해제 (초기화)
+              </button>
+              
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsConfigModalOpen(false)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs rounded-xl transition cursor-pointer"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-500/10 transition cursor-pointer"
+                >
+                  저장 및 연결
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>

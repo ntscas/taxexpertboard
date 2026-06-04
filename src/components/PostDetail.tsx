@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Post, Comment } from "../types";
 import { formatDate } from "./PostCard";
+import { dbService } from "../db";
 
 interface PostDetailProps {
   postId: string;
@@ -130,16 +131,11 @@ export function PostDetail({
     try {
       setIsLoading(true);
       
-      const postRes = await fetch(`/api/posts/${postId}`);
-      if (!postRes.ok) throw new Error("게시글을 불러올 수 없습니다.");
-      const postData = await postRes.json();
+      const postData = await dbService.getPostDetail(postId);
       setPost(postData.post);
 
-      const commentsRes = await fetch(`/api/posts/${postId}/comments`);
-      if (commentsRes.ok) {
-        const commentsData = await commentsRes.json();
-        setComments(commentsData.comments || []);
-      }
+      const commentsData = await dbService.getComments(postId);
+      setComments(commentsData.comments || []);
     } catch (err: any) {
       onStatusMessage({ text: err.message || "오류가 발생했습니다.", type: "error" });
       onClose();
@@ -157,14 +153,12 @@ export function PostDetail({
     if (!post) return;
     try {
       setLikeAnimating(true);
-      const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setPost(data.post);
-        onStatusMessage({ text: "추천되었습니다 ❤️", type: "success" });
-      }
-    } catch (err) {
+      const data = await dbService.likePost(postId);
+      setPost(data.post);
+      onStatusMessage({ text: "추천되었습니다 ❤️", type: "success" });
+    } catch (err: any) {
       console.error(err);
+      onStatusMessage({ text: err.message || "추천에 실패했습니다.", type: "error" });
     } finally {
       setTimeout(() => setLikeAnimating(false), 600);
     }
@@ -179,21 +173,12 @@ export function PostDetail({
 
     try {
       setIsSubmittingComment(true);
-      const res = await fetch(`/api/posts/${postId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          author: commentAuthor,
-          content: commentContent,
-          password: commentPassword || undefined,
-        }),
+      await dbService.createComment(postId, {
+        author: commentAuthor,
+        content: commentContent,
+        password: commentPassword || undefined,
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "댓글 저장에 실패했습니다.");
-      }
-      
       // Reset input fields
       setCommentAuthor("");
       setCommentContent("");
@@ -202,11 +187,8 @@ export function PostDetail({
       onStatusMessage({ text: "댓글이 작성되었습니다.", type: "success" });
       
       // Reload comments
-      const reloadRes = await fetch(`/api/posts/${postId}/comments`);
-      if (reloadRes.ok) {
-        const data = await reloadRes.json();
-        setComments(data.comments || []);
-      }
+      const data = await dbService.getComments(postId);
+      setComments(data.comments || []);
     } catch (err: any) {
       onStatusMessage({ text: err.message, type: "error" });
     } finally {
@@ -228,21 +210,7 @@ export function PostDetail({
 
     try {
       if (actionType === "delete") {
-        const res = await fetch(`/api/posts/${postId}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: verifyPassword }),
-        });
-
-        if (res.status === 403) {
-          setVerifyError("비밀번호가 안전하지 않거나 다릅니다.");
-          return;
-        }
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "삭제 처리 중 에러 발생");
-        }
-
+        await dbService.deletePost(postId, verifyPassword);
         onStatusMessage({ text: "게시글이 영구 삭제되었습니다.", type: "success" });
         onDeleteSuccess();
       } 
@@ -255,21 +223,7 @@ export function PostDetail({
       } 
       
       else if (actionType === "delete-comment" && targetCommentId) {
-        const res = await fetch(`/api/comments/${targetCommentId}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: verifyPassword }),
-        });
-
-        if (res.status === 403) {
-          setVerifyError("비밀번호가 일치하지 않습니다.");
-          return;
-        }
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "삭제 처리 중 에러 발생");
-        }
-
+        await dbService.deleteComment(targetCommentId, verifyPassword);
         onStatusMessage({ text: "댓글이 정상적으로 삭제되었습니다.", type: "success" });
         
         // Refresh comments list
@@ -278,7 +232,7 @@ export function PostDetail({
         setTargetCommentId(null);
       }
     } catch (err: any) {
-      setVerifyError(err.message || "작업 도중 요류가 발생했습니다.");
+      setVerifyError(err.message || "작업 도중 오류가 발생했습니다.");
     }
   };
 
