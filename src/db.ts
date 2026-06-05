@@ -33,7 +33,19 @@ const HARDCODED_SUPABASE_URL = "https://agwcumknhangcyhusfsn.supabase.co";
 const HARDCODED_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnd2N1bWtuaGFuZ2N5aHVzZnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzA4MDMsImV4cCI6MjA5NjE0NjgwM30.BD84awWmc6sd4-RdJ7UkvtRYxGAUOJ3svv505MstyRU"; 
 
 export function getDbConfig(): DbConfig {
-  // 1. Check local storage overrides (allows runtime configuration in client)
+  // 1. Check hardcoded fallback credentials first (Immediate priority for plug-and-play)
+  const isHardcodedConfigured = !!(HARDCODED_SUPABASE_URL && HARDCODED_SUPABASE_ANON_KEY);
+
+  if (isHardcodedConfigured) {
+    return {
+      supabaseUrl: normalizeSupabaseUrl(HARDCODED_SUPABASE_URL) || null,
+      supabaseAnonKey: HARDCODED_SUPABASE_ANON_KEY,
+      isConfigured: true,
+      source: "env"
+    };
+  }
+
+  // 2. Check local storage overrides (allows runtime configuration in client)
   const lUrl = localStorage.getItem("VITE_SUPABASE_URL_OVERRIDE")?.trim() || null;
   const lKey = localStorage.getItem("VITE_SUPABASE_ANON_KEY_OVERRIDE")?.trim() || null;
   
@@ -46,7 +58,7 @@ export function getDbConfig(): DbConfig {
     };
   }
 
-  // 2. Check Vite build-time environment variables
+  // 3. Check Vite build-time environment variables
   const metaEnv = (import.meta as any).env || {};
   const envUrl = metaEnv.VITE_SUPABASE_URL?.trim() || null;
   const envKey = metaEnv.VITE_SUPABASE_ANON_KEY?.trim() || null;
@@ -62,23 +74,6 @@ export function getDbConfig(): DbConfig {
     return {
       supabaseUrl: normalizeSupabaseUrl(envUrl) || null,
       supabaseAnonKey: envKey,
-      isConfigured: true,
-      source: "env"
-    };
-  }
-
-  // 3. Check hardcoded fallback credentials
-  const isHardcodedConfigured = !!(
-    HARDCODED_SUPABASE_URL &&
-    HARDCODED_SUPABASE_URL !== "https://your-project.supabase.co" &&
-    HARDCODED_SUPABASE_ANON_KEY &&
-    HARDCODED_SUPABASE_ANON_KEY !== "your-anon-key"
-  );
-
-  if (isHardcodedConfigured) {
-    return {
-      supabaseUrl: normalizeSupabaseUrl(HARDCODED_SUPABASE_URL) || null,
-      supabaseAnonKey: HARDCODED_SUPABASE_ANON_KEY,
       isConfigured: true,
       source: "env"
     };
