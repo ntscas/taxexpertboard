@@ -198,6 +198,14 @@ export function PostDetail({
 
   // Enter action verification layer
   const triggerVerify = (type: "edit" | "delete" | "delete-comment", commentId?: string) => {
+    if (!post) return;
+
+    // For edits, if no password is set on the post, open editing form directly without showing popup modal
+    if (type === "edit" && !post.password) {
+      onEdit({ ...post, password: "" });
+      return;
+    }
+
     setActionType(type);
     setVerifyPassword("");
     setVerifyError(null);
@@ -216,9 +224,14 @@ export function PostDetail({
       } 
       
       else if (actionType === "edit") {
-        // For editing, we verify on submission in form, so we close validation overlay,
-        // send client auth password details directly to parent form launcher!
+        // Correctly verify the password immediately in the detail layer
+        if (post.password && post.password !== verifyPassword) {
+          setVerifyError("비밀번호가 일치하지 않습니다.");
+          return;
+        }
+        // Send verified password to form
         const verifyPost = { ...post, password: verifyPassword };
+        setActionType(null); // Close the verification modal
         onEdit(verifyPost);
       } 
       
@@ -479,9 +492,9 @@ export function PostDetail({
                 type="password"
                 value={verifyPassword}
                 onChange={(e) => setVerifyPassword(e.target.value)}
-                placeholder="비밀번호(암호) 기입"
+                placeholder={post.password ? "비밀번호(암호) 기입" : "설정된 비밀번호가 없습니다. 빈 상태로 검증 버튼을 누르세요."}
                 className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:border-brand focus:outline-none transition"
-                required
+                required={!!post.password}
                 autoFocus
               />
               <button
