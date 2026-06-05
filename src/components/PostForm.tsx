@@ -31,7 +31,7 @@ export function PostForm({ post, onClose, onSubmit, categories }: PostFormProps)
       setAuthor(post.author);
       setCategory(post.category as Category);
       setContent(post.content);
-      setPassword(""); // Don't prefill password, user must enter password to confirm edit
+      setPassword(post.password || ""); // Prefill verified password so user doesn't type it twice
     }
   }, [post]);
 
@@ -40,7 +40,7 @@ export function PostForm({ post, onClose, onSubmit, categories }: PostFormProps)
     if (!title.trim()) return setError("제목을 입력해 주세요.");
     if (!author.trim()) return setError("작성자를 입력해 주세요.");
     if (!content.trim()) return setError("내용을 입력해 주세요.");
-    if (isEdit && !password) return setError("수정 확인을 위해 원본 패스워드를 적어주세요.");
+    if (isEdit && post?.password && !password) return setError("수정 확인을 위해 원본 패스워드를 적어주세요.");
 
     try {
       setSubmitting(true);
@@ -138,7 +138,7 @@ export function PostForm({ post, onClose, onSubmit, categories }: PostFormProps)
 
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                {isEdit ? "패스워드 입력 (인증)" : "게시물 수정/삭제 비밀번호 (선택)"}
+                {isEdit ? "패스워드 입력 (인증됨)" : "게시물 수정/삭제 비밀번호 (선택)"}
               </label>
               <input
                 type="password"
@@ -146,7 +146,7 @@ export function PostForm({ post, onClose, onSubmit, categories }: PostFormProps)
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="수정/삭제 시 필요한 비밀번호"
                 className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition"
-                required={isEdit}
+                required={isEdit && !!post?.password}
               />
             </div>
           </div>
