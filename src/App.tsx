@@ -125,14 +125,21 @@ export default function App() {
 
   // Synchronize the detail view (selectedPost) whenever the posts list updates:
   // This ensures that when category or filters are changed, the post content window (detail view)
-  // automatically switches to the first post of the current category/list.
+  // automatically switches to the first post of the current category/list on desktop,
+  // while keeping the list clean and un-popped on mobile until explicitly clicked.
   useEffect(() => {
     if (posts.length > 0) {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       // If there is currently a selected post, see if it exists in the active posts array
       const stillExists = selectedPost ? posts.some(p => p.id === selectedPost.id) : false;
       if (!stillExists) {
-        // If it was deleted, or we changed category so it's not in the list, auto-select the first post
-        setSelectedPost(posts[0]);
+        if (isMobile) {
+          // Keep it null on mobile so details do not automatically pop up
+          setSelectedPost(null);
+        } else {
+          // If it was deleted, or we changed category so it's not in the list, auto-select the first post on desktop
+          setSelectedPost(posts[0]);
+        }
       } else {
         // Keep the selected post synced with any updates (like views or likes) from the list
         const updatedPost = posts.find(p => p.id === selectedPost.id);
@@ -392,7 +399,7 @@ export default function App() {
         <div className="flex-1 flex overflow-hidden relative">
           
           {/* Dual Zone-1: Left Posts lists feed */}
-          <section className="w-full lg:w-[380px] xl:w-[420px] border-r border-slate-200 bg-white flex flex-col h-full shrink-0">
+          <section className="w-full md:w-[350px] lg:w-[380px] xl:w-[420px] md:border-r border-slate-200 bg-white flex flex-col h-full shrink-0">
             
             {/* Sub-header menu control */}
             <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 bg-slate-50/40">
@@ -405,9 +412,9 @@ export default function App() {
                       key={cat}
                       type="button"
                       onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all shrink-0 cursor-pointer border ${
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all shrink-0 cursor-pointer border ${
                         isSelected
-                          ? "bg-slate-950 border-slate-950 text-white font-semibold shadow-xs"
+                          ? "bg-slate-950 border-slate-950 text-white shadow-xs"
                           : "bg-white border-slate-200 text-slate-600 hover:text-slate-950 hover:border-slate-300"
                       }`}
                     >
@@ -460,7 +467,7 @@ export default function App() {
           </section>
 
           {/* Dual Zone-2: Welcome landing page & guidelines detailed panel */}
-          <section className="hidden lg:flex flex-1 bg-slate-50 p-6 xl:p-8 overflow-y-auto h-full">
+          <section className="hidden md:flex flex-1 bg-slate-50 p-4 md:p-6 xl:p-8 overflow-y-auto h-full">
             <div className="max-w-3xl mx-auto h-full w-full flex flex-col">
               {selectedPost ? (
                 <div className="h-full animate-fade-in flex flex-col">
@@ -478,6 +485,7 @@ export default function App() {
                     }}
                     onStatusMessage={({ text, type }) => triggerToast(text, type)}
                     isInline={true}
+                    onCategoryClick={(cat) => setSelectedCategory(cat)}
                   />
                 </div>
               ) : (
@@ -500,9 +508,9 @@ export default function App() {
 
       </main>
 
-      {/* MODAL: Detailed text component overlay (Mobile Only) */}
+      {/* MODAL: Detailed text component overlay (Mobile Only: md:hidden) */}
       {selectedPost && (
-        <div className="lg:hidden">
+        <div className="md:hidden">
           <PostDetail
             postId={selectedPost.id}
             onClose={() => setSelectedPost(null)}
@@ -516,6 +524,11 @@ export default function App() {
               fetchPosts();
             }}
             onStatusMessage={({ text, type }) => triggerToast(text, type)}
+            isInline={false}
+            onCategoryClick={(cat) => {
+              setSelectedCategory(cat);
+              setSelectedPost(null);
+            }}
           />
         </div>
       )}
