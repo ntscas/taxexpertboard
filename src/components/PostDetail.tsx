@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   X, ThumbsUp, Trash2, Edit, MessageSquare, 
-  Send, User, Calendar, Eye, ShieldCheck, HelpCircle, CornerDownRight 
+  Send, User, Calendar, Eye, ShieldCheck
 } from "lucide-react";
 import { Post, Comment } from "../types";
 import { formatDate } from "./PostCard";
@@ -16,7 +16,6 @@ interface PostDetailProps {
   isInline?: boolean;
 }
 
-// Custom simple markdown formatter to visually polish markdown text inside cards
 function SimpleMarkdownRenderer({ text }: { text: string }) {
   if (!text) return null;
   
@@ -28,12 +27,10 @@ function SimpleMarkdownRenderer({ text }: { text: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Toggle Codeblocks
     if (line.trim().startsWith("```")) {
       if (inCodeBlock) {
-        // Render current codeblock
         renderedElements.push(
-          <pre key={`code-${i}`} className="my-4 p-4 bg-gray-900 text-gray-100 rounded-xl font-mono text-xs overflow-x-auto border border-gray-800 text-left">
+          <pre key={`code-${i}-${codeSnippet.length}`} className="my-4 p-4 bg-gray-900 text-gray-100 rounded-xl font-mono text-xs overflow-x-auto border border-gray-800 text-left">
             <code>{codeSnippet.join("\n")}</code>
           </pre>
         );
@@ -50,37 +47,34 @@ function SimpleMarkdownRenderer({ text }: { text: string }) {
       continue;
     }
 
-    // Headers
-    if (line.trim().startsWith("### ")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("### ")) {
       renderedElements.push(
         <h3 key={`h3-${i}`} className="text-base font-semibold text-gray-900 mt-5 mb-2 font-display">
           {line.replace("### ", "").trim()}
         </h3>
       );
-    } else if (line.trim().startsWith("## ")) {
+    } else if (trimmed.startsWith("## ")) {
       renderedElements.push(
         <h2 key={`h2-${i}`} className="text-lg font-bold text-gray-900 mt-6 mb-3 font-display">
           {line.replace("## ", "").trim()}
         </h2>
       );
-    } else if (line.trim().startsWith("# ")) {
+    } else if (trimmed.startsWith("# ")) {
       renderedElements.push(
         <h1 key={`h1-${i}`} className="text-xl font-extrabold text-gray-900 mt-7 mb-4 font-display">
           {line.replace("# ", "").trim()}
         </h1>
       );
-    } 
-    // Bullet lists
-    else if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       renderedElements.push(
         <ul key={`ul-${i}`} className="list-disc list-inside text-gray-700 text-sm pl-4 my-1.5 space-y-1">
           <li className="leading-relaxed">{line.substring(2).trim()}</li>
         </ul>
       );
-    } else if (line.trim() === "") {
+    } else if (trimmed === "") {
       renderedElements.push(<div key={`space-${i}`} className="h-2.5" />);
     } else {
-      // Normal paragraph
       renderedElements.push(
         <p key={`p-${i}`} className="text-gray-700 text-sm leading-relaxed mb-1.5">
           {line}
@@ -89,7 +83,6 @@ function SimpleMarkdownRenderer({ text }: { text: string }) {
     }
   }
 
-  // Handle unclosed codeblocks
   if (inCodeBlock && codeSnippet.length > 0) {
     renderedElements.push(
       <pre key={`code-unclosed`} className="my-4 p-4 bg-gray-900 text-gray-100 rounded-xl font-mono text-xs overflow-x-auto text-left">
@@ -112,25 +105,22 @@ export function PostDetail({
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
 
-  // Form states for adding comments
   const [commentAuthor, setCommentAuthor] = useState("");
   const [commentContent, setCommentContent] = useState("");
   const [commentPassword, setCommentPassword] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  // Authenticated actions triggers
   const [actionType, setActionType] = useState<"edit" | "delete" | "delete-comment" | null>(null);
   const [verifyPassword, setVerifyPassword] = useState("");
   const [targetCommentId, setTargetCommentId] = useState<string | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
-  // Fetch target post detail and comments list
   const fetchDetail = async () => {
     try {
       setIsLoading(true);
-      
       const postData = await dbService.getPostDetail(postId);
       setPost(postData.post);
 
@@ -148,10 +138,10 @@ export function PostDetail({
     fetchDetail();
   }, [postId]);
 
-  // Handle Post Upvote/Like
   const handleLike = async () => {
-    if (!post) return;
+    if (!post || isLiking) return;
     try {
+      setIsLiking(true);
       setLikeAnimating(true);
       const data = await dbService.likePost(postId);
       setPost(data.post);
@@ -160,11 +150,11 @@ export function PostDetail({
       console.error(err);
       onStatusMessage({ text: err.message || "추천에 실패했습니다.", type: "error" });
     } finally {
+      setIsLiking(false);
       setTimeout(() => setLikeAnimating(false), 600);
     }
   };
 
-  // Submit Comments
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentAuthor.trim() || !commentContent.trim()) {
@@ -179,16 +169,15 @@ export function PostDetail({
         password: commentPassword || undefined,
       });
 
-      // Reset input fields
+      onStatusMessage({ text: "댓글이 작성되었습니다.", type: "success" });
+      
+      const data = await dbService.getComments(postId);
+      setComments(data.comments || []);
+      
+      // 데이터 바인딩 후 폼 리셋
       setCommentAuthor("");
       setCommentContent("");
       setCommentPassword("");
-      
-      onStatusMessage({ text: "댓글이 작성되었습니다.", type: "success" });
-      
-      // Reload comments
-      const data = await dbService.getComments(postId);
-      setComments(data.comments || []);
     } catch (err: any) {
       onStatusMessage({ text: err.message, type: "error" });
     } finally {
@@ -196,11 +185,9 @@ export function PostDetail({
     }
   };
 
-  // Enter action verification layer
   const triggerVerify = (type: "edit" | "delete" | "delete-comment", commentId?: string) => {
     if (!post) return;
 
-    // For edits, if no password is set on the post, open editing form directly without showing popup modal
     if (type === "edit" && !post.password) {
       onEdit({ ...post, password: "" });
       return;
@@ -222,24 +209,19 @@ export function PostDetail({
         onStatusMessage({ text: "게시글이 영구 삭제되었습니다.", type: "success" });
         onDeleteSuccess();
       } 
-      
       else if (actionType === "edit") {
-        // Correctly verify the password immediately in the detail layer
+        // 백엔드 단방향 검증 구조가 이상적이나 우선 기존 스펙 호환 유지
         if (post.password && post.password !== verifyPassword) {
           setVerifyError("비밀번호가 일치하지 않습니다.");
           return;
         }
-        // Send verified password to form
         const verifyPost = { ...post, password: verifyPassword };
-        setActionType(null); // Close the verification modal
+        setActionType(null);
         onEdit(verifyPost);
       } 
-      
       else if (actionType === "delete-comment" && targetCommentId) {
         await dbService.deleteComment(targetCommentId, verifyPassword);
         onStatusMessage({ text: "댓글이 정상적으로 삭제되었습니다.", type: "success" });
-        
-        // Refresh comments list
         setComments((prev) => prev.filter((c) => c.id !== targetCommentId));
         setActionType(null);
         setTargetCommentId(null);
@@ -346,7 +328,7 @@ export function PostDetail({
           <div className="flex justify-center py-6">
             <button
               onClick={handleLike}
-              disabled={likeAnimating}
+              disabled={isLiking}
               className={`group flex items-center gap-2 px-6 py-3 rounded-full border select-none cursor-pointer transition duration-300 ${
                 likeAnimating 
                 ? "bg-rose-50 border-rose-200 text-rose-500 scale-105" 
@@ -447,11 +429,8 @@ export function PostDetail({
                 ))}
               </div>
             )}
-
           </div>
-
         </div>
-
       </div>
 
       {/* Password verification Overlay/Drawer */}
@@ -476,7 +455,7 @@ export function PostDetail({
               </h3>
             </div>
 
-            <p className="text-xs text-text-gray-500 leading-normal mb-4">
+            <p className="text-xs text-gray-500 leading-normal mb-4">
               {actionType === "edit" ? "게시물을 수정하려면 생성 비밀번호를 작성하세요." :
                actionType === "delete" ? "게시물을 데이터베이스에서 완전 폐기하려면 등록 암호를 확인하세요." :
                "댓글을 안전하게 정리할 수 있도록 지정 암호를 기재하세요."}
@@ -507,7 +486,6 @@ export function PostDetail({
           </div>
         </div>
       )}
-
     </div>
   );
 }
