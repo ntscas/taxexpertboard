@@ -123,6 +123,28 @@ export default function App() {
     fetchPosts();
   }, [selectedCategory, sortOption]);
 
+  // Synchronize the detail view (selectedPost) whenever the posts list updates:
+  // This ensures that when category or filters are changed, the post content window (detail view)
+  // automatically switches to the first post of the current category/list.
+  useEffect(() => {
+    if (posts.length > 0) {
+      // If there is currently a selected post, see if it exists in the active posts array
+      const stillExists = selectedPost ? posts.some(p => p.id === selectedPost.id) : false;
+      if (!stillExists) {
+        // If it was deleted, or we changed category so it's not in the list, auto-select the first post
+        setSelectedPost(posts[0]);
+      } else {
+        // Keep the selected post synced with any updates (like views or likes) from the list
+        const updatedPost = posts.find(p => p.id === selectedPost.id);
+        if (updatedPost) {
+          setSelectedPost(updatedPost);
+        }
+      }
+    } else {
+      setSelectedPost(null);
+    }
+  }, [posts]);
+
   // Handle Manual Search Trigger
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,21 +395,44 @@ export default function App() {
           <section className="w-full lg:w-[380px] xl:w-[420px] border-r border-slate-200 bg-white flex flex-col h-full shrink-0">
             
             {/* Sub-header menu control */}
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50/40">
-              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-display">
-                {selectedCategory === "전체" ? "All Discussions" : `${selectedCategory} 목록`}
-              </h2>
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-400">Sort:</span>
-                <select 
-                  value={sortOption}
-                  onChange={(e) => setSortOption(e.target.value as SortOption)}
-                  className="text-[10px] font-semibold text-slate-600 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer pr-1"
-                >
-                  <option value="latest">최신 등록순</option>
-                  <option value="views">인기 조회순</option>
-                  <option value="likes">추천 득표순</option>
-                </select>
+            <div className="p-4 border-b border-slate-100 flex flex-col gap-3 shrink-0 bg-slate-50/40">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-display">
+                  {selectedCategory === "전체" ? "All Discussions" : `${selectedCategory} 목록`}
+                </h2>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-slate-400">Sort:</span>
+                  <select 
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value as SortOption)}
+                    className="text-[10px] font-semibold text-slate-600 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer pr-1"
+                  >
+                    <option value="latest">최신 등록순</option>
+                    <option value="views">인기 조회순</option>
+                    <option value="likes">추천 득표순</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Category Quick Filter Buttons */}
+              <div className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden py-1">
+                {categories.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-full text-[10.5px] font-medium transition-all shrink-0 cursor-pointer border ${
+                        isSelected
+                          ? "bg-slate-900 border-slate-900 text-white font-semibold shadow-xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                      }`}
+                    >
+                      {cat === "전체" ? "All Discussions" : cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
