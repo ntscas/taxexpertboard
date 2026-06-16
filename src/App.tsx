@@ -491,7 +491,7 @@ export default function App() {
                     ⚡
                   </div>
                   <h3 className="font-display font-semibold text-slate-800 text-sm mb-1.5">
-                    선택된 게시글이 없습니다
+                    선택된 게시글이 없습니다.
                   </h3>
                   <p className="text-slate-400 text-xs max-w-xs mx-auto leading-relaxed">
                     왼쪽 토픽 피드에서 글을 선택하면 본문 내용과 실시간으로 연동되는 댓글 대화를 이곳에서 바로 확인하고 작성하실 수 있습니다.
