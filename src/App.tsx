@@ -278,7 +278,7 @@ export default function App() {
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
               >
-                <span>{cat === "전체" ? "All Discussions" : cat}</span>
+                <span>{cat === "전체" ? "ALL" : cat}</span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
                   isSelected ? "bg-emerald-500 text-white font-bold" : "bg-slate-800 text-slate-500"
                 }`}>
@@ -395,27 +395,9 @@ export default function App() {
           <section className="w-full lg:w-[380px] xl:w-[420px] border-r border-slate-200 bg-white flex flex-col h-full shrink-0">
             
             {/* Sub-header menu control */}
-            <div className="p-4 border-b border-slate-100 flex flex-col gap-3 shrink-0 bg-slate-50/40">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-display">
-                  {selectedCategory === "전체" ? "All Discussions" : `${selectedCategory} 목록`}
-                </h2>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-slate-400">Sort:</span>
-                  <select 
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value as SortOption)}
-                    className="text-[10px] font-semibold text-slate-600 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer pr-1"
-                  >
-                    <option value="latest">최신 등록순</option>
-                    <option value="views">인기 조회순</option>
-                    <option value="likes">추천 득표순</option>
-                  </select>
-                </div>
-              </div>
-
+            <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 bg-slate-50/40">
               {/* Category Quick Filter Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden py-1">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {categories.map((cat) => {
                   const isSelected = selectedCategory === cat;
                   return (
@@ -423,16 +405,29 @@ export default function App() {
                       key={cat}
                       type="button"
                       onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 rounded-full text-[10.5px] font-medium transition-all shrink-0 cursor-pointer border ${
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all shrink-0 cursor-pointer border ${
                         isSelected
-                          ? "bg-slate-900 border-slate-900 text-white font-semibold shadow-xs"
-                          : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                          ? "bg-slate-950 border-slate-950 text-white font-semibold shadow-xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:text-slate-950 hover:border-slate-300"
                       }`}
                     >
-                      {cat === "전체" ? "All Discussions" : cat}
+                      {cat === "전체" ? "ALL" : cat}
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Sort selector on the same line */}
+              <div className="flex items-center shrink-0 bg-white border border-slate-200 rounded-full px-2 py-0.5 text-[10.5px]">
+                <select 
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as SortOption)}
+                  className="font-semibold text-slate-600 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer pr-4 py-0 text-[10.5px]"
+                >
+                  <option value="latest">최신순</option>
+                  <option value="views">인기순</option>
+                  <option value="likes">추천순</option>
+                </select>
               </div>
             </div>
 
@@ -491,7 +486,7 @@ export default function App() {
                     ⚡
                   </div>
                   <h3 className="font-display font-semibold text-slate-800 text-sm mb-1.5">
-                    선택된 게시글이 없습니다.
+                    선택된 게시글이 없습니다
                   </h3>
                   <p className="text-slate-400 text-xs max-w-xs mx-auto leading-relaxed">
                     왼쪽 토픽 피드에서 글을 선택하면 본문 내용과 실시간으로 연동되는 댓글 대화를 이곳에서 바로 확인하고 작성하실 수 있습니다.
